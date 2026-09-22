@@ -6,6 +6,7 @@ Built for the Synchrony Hackathon — Problem Statement 1: *expand credit access
 
 📄 Full technical report: [System Design Document (PDF)](synxhro.pdf)
 
+
 ---
 
 ## Why this exists
@@ -80,6 +81,12 @@ If the LLM hallucinates a number or a policy citation, the system **fails closed
 We train and evaluate on Kaggle's **[Home Credit Default Risk](https://www.kaggle.com/c/home-credit-default-risk)** dataset — the closest large, real-world analogue to the NTC/thin-file problem, with genuine multi-table behavioral signal (bureau history, previous applications, POS/credit-card balances, installment payments) and naturally occurring missingness.
 
 The raw Kaggle CSVs are **not preprocessed out of the box** — they need to be joined and feature-engineered before the scoring engine can train on them. `backend/scripts/build_kaggle_features.py` handles this: it aggregates `bureau.csv`, `bureau_balance.csv`, `previous_application.csv`, `POS_CASH_balance.csv`, `credit_card_balance.csv`, and `installments_payments.csv` to the applicant grain (`SK_ID_CURR`), applies the Active/Closed and Approved/Refused split tricks, engineers ratio and PCA features on `EXT_SOURCE_1/2/3`, and joins everything onto `application_train.csv` to produce `data/application_train_enriched.csv`. This is a **one-time offline job** — anyone setting up the repo needs to run it once against the raw Kaggle CSVs before the backend can train the model (see [Getting started](#getting-started) below).
+
+**Pre-processed and pre-trained, hosted on Hugging Face.** To save you from re-running the ~1-hour preprocessing + training pass, we've uploaded the already-enriched dataset (`application_train_enriched.csv`) and the trained model artifact (`model_artifact.joblib`, **0.7962 AUC**) to the Hugging Face Hub:
+
+👉 **[belgium-waffle/synchrony_hackathon](https://huggingface.co/belgium-waffle/synchrony_hackathon)**
+
+Drop both files straight into `backend/data/` and skip the `build_kaggle_features.py` step entirely — `main.py` will load `model_artifact.joblib` directly on startup.
 
 ---
 
@@ -173,8 +180,6 @@ npm run dev
 `npm run dev` will install dependencies and start the dev server. Before running it, set up your own `.env` in `frontend/` (copy from `.env.example` if one is provided) with the backend API URL and any other required environment variables — this is separate from the backend's `.env`.
 
 The console runs at `http://localhost:3000` and expects the backend at the URL configured in the frontend environment.
-
-![Next-Gen Credit Intelligence Dashboard](docs/frontend_screenshot.png)
 
 ### Tests
 
