@@ -4,7 +4,7 @@
 
 Built for the Synchrony Hackathon — Problem Statement 1: *expand credit access using alternative data and real-time behavioral signals, while mitigating fraud and ensuring regulatory transparency.*
 
-📄 Full technical report: [`docs/V0_FRONTEND_PROMPT.md`](docs/V0_FRONTEND_PROMPT.md) and the accompanying System Design Document.
+📄 Full technical report: [System Design Document (PDF)](synxhro.pdf)
 
 ---
 
