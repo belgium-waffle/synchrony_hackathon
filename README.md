@@ -18,23 +18,33 @@ Traditional credit models lean on static bureau history, which locks out million
 We solve both with a **Dual-Stream Architecture** that keeps deterministic ML and generative explanation strictly separated — reunited only behind a verifier that refuses to release anything it cannot mathematically prove.
 
 ```
-Applicant Record (Tabular + Free-Text Notes)
-        │
-        ├── Stream A — Quantitative
-        │     LightGBM + CatBoost blend → exact TreeSHAP attribution
-        │
-        └── Stream B — Qualitative RAG
-              sentence-transformers embeddings → FAISS / pgvector retrieval
-                        │
-                        ▼
-              LLM Synthesis (Bedrock-shaped client → strict JSON)
-                        │
-                        ▼
-              Deterministic Verifier
-        (asserts LLM output matches exact SHAP values & retrieved policy IDs)
-                        │
-                        ▼
-     Verified Audit Report (score, explanation, citations, recourse)
+[Input: Applicant Dictionary (Tabular + Notes)]
+                               │
+       ┌───────────────────────┴───────────────────────┐
+       │                                               │
+       ▼                                               ▼
+┌───────────────────────────────┐        ┌───────────────────────────────┐
+│   Stream A: ML Scoring Engine │        │   Stream B: Qualitative RAG   │
+│                               │        │                               │
+│  1. Preprocessing (NaN handle)│        │  1. Embed Applicant Notes     │
+│  2. CatBoost + LightGBM Stack │        │  2. sentence-transformers     │
+│  3. SHAP Feature Attribution  │        │  3. FAISS (Local Vector DB)   │
+└───────────────┬───────────────┘        └───────────────┬───────────────┘
+                │                                        │
+                │ Risk Score + SHAP Values               │ Matched Policy Rules
+                └───────────────────┬────────────────────┘
+                                    │
+                                    ▼
+        ┌────────────────────────────────────────────────────────┐
+        │              LLM Synthesis & Guardrail Layer           │
+        │       (boto3 AWS Bedrock -> Strict JSON Output)        │
+        └───────────────────────────┬────────────────────────────┘
+                                    │ Structured Decision Payload
+                                    ▼
+        ┌────────────────────────────────────────────────────────┐
+        │                 Deterministic Verifier                 │
+        │   (Asserts LLM JSON matches exact SHAP & Policy IDs)   │
+        └────────────────────────────────────────────────────────┘
 ```
 
 If the LLM hallucinates a number or a policy citation, the system **fails closed** — it returns a blocked `422` decision, never a plausible-looking but false one.
@@ -65,7 +75,11 @@ If the LLM hallucinates a number or a policy citation, the system **fails closed
 | ML models | LightGBM + CatBoost, blended in margin space; exact TreeSHAP |
 | Model persistence | `joblib` artifact, trained once from the enriched dataset |
 
-Dataset: [Home Credit Default Risk](https://www.kaggle.com/c/home-credit-default-risk) (Kaggle) — the closest large, real-world analogue to the NTC/thin-file problem, with genuine multi-table behavioral signal and naturally occurring missingness.
+### Dataset
+
+We train and evaluate on Kaggle's **[Home Credit Default Risk](https://www.kaggle.com/c/home-credit-default-risk)** dataset — the closest large, real-world analogue to the NTC/thin-file problem, with genuine multi-table behavioral signal (bureau history, previous applications, POS/credit-card balances, installment payments) and naturally occurring missingness.
+
+The raw Kaggle CSVs are **not preprocessed out of the box** — they need to be joined and feature-engineered before the scoring engine can train on them. `backend/scripts/build_kaggle_features.py` handles this: it aggregates `bureau.csv`, `bureau_balance.csv`, `previous_application.csv`, `POS_CASH_balance.csv`, `credit_card_balance.csv`, and `installments_payments.csv` to the applicant grain (`SK_ID_CURR`), applies the Active/Closed and Approved/Refused split tricks, engineers ratio and PCA features on `EXT_SOURCE_1/2/3`, and joins everything onto `application_train.csv` to produce `data/application_train_enriched.csv`. This is a **one-time offline job** — anyone setting up the repo needs to run it once against the raw Kaggle CSVs before the backend can train the model (see [Getting started](#getting-started) below).
 
 ---
 
@@ -130,7 +144,13 @@ pip install -r requirements.txt
 cp .env.example .env
 # edit .env with your GEMINI_API_KEY and (optionally) DATABASE_URL
 
-# one-time offline preprocessing (produces application_train_enriched.csv)
+# download the Home Credit Default Risk dataset from Kaggle and place the raw
+# CSVs (application_train.csv, bureau.csv, bureau_balance.csv,
+# previous_application.csv, POS_CASH_balance.csv, credit_card_balance.csv,
+# installments_payments.csv) into backend/data/
+
+# one-time offline preprocessing: joins + aggregates all raw tables and
+# engineers features, producing data/application_train_enriched.csv
 python scripts/build_kaggle_features.py
 
 # seed the policy corpus used by Stream B
