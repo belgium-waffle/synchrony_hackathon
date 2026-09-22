@@ -1,0 +1,17 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.0
+python-dotenv==1.0.1
+SQLAlchemy==2.0.36
+psycopg2-binary==2.9.10
+pgvector==0.3.6
+lightgbm==4.5.0
+scikit-learn==1.6.0
+shap==0.46.0
+pandas==2.2.3
+numpy==1.26.4
+sentence-transformers==3.3.1
+boto3==1.35.90
+httpx==0.28.1
+pytest==8.3.4
