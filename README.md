@@ -174,6 +174,8 @@ npm run dev
 
 The console runs at `http://localhost:3000` and expects the backend at the URL configured in the frontend environment.
 
+![Next-Gen Credit Intelligence Dashboard](docs/frontend_screenshot.png)
+
 ### Tests
 
 ```bash
